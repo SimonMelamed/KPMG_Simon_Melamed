@@ -2,12 +2,14 @@
 title: "KPMGEDIT"
 author: "Simon Melamed"
 date: "2/10/2020"
-output: html_document
+output: github_document
+always_allow_html: true
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
 
+### LOAD REQUIRED PACKAGES
 pacman::p_load(gridExtra, tidyverse, lubridate, textreadr, knitr, FNN, kableExtra, scales)
 
 ```
@@ -269,6 +271,7 @@ anomaly_data <- all_data %>%
                 
                 
 summary(anomaly_data)
+
 ```
 graf tidsserie med purchprice o saleprice
 
