@@ -1,0 +1,296 @@
+---
+title: "KPMGEDIT"
+author: "Simon Melamed"
+date: "2/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(gridExtra, tidyverse, lubridate, textreadr, knitr, FNN, kableExtra, scales)
+
+```
+
+```{r}
+### READ IN DATA FROM CHOSEN FOLDER
+
+### Detect files in folder
+files_in_folder <- list.files(path = "../CaseData_2020_ID029", pattern = "\\.txt$", full.names = TRUE)
+
+### Read in the files to a list using map and read.delim
+data <- map(files_in_folder, read.delim, sep = "|", na.strings = c("NA", "NAs", "", " ", "NULL")) 
+
+### Separate the list of data and save each set in their on data frame
+customer_db <- data[[1]]
+
+items_db <- data[[2]]
+
+transactions_db <- data[[3]]
+
+```
+
+This chunk of code reads in all of the .txt files in the chosen folder path, this can be changed in the future to download other files in other folders.
+
+```{r}
+### DATA PREPARATION
+
+### Join the data for analysis and change class of certain columns
+all_data <- items_db %>%
+            select(-SUPLID) %>% # Redundant column
+            distinct() %>% # Necessary for the join
+            full_join(transactions_db, by = "ITEM") %>% # Transactions and item dbs is connected by itemid
+            full_join(customer_db, by = "USERID") %>% # Customer and transaction dbs is connected by userid
+            mutate(SALEPRICE = as.numeric(SALEPRICE), # Change columns to appropriate class
+                   TIMESTAMP = hms(as.character(TIMESTAMP)),
+                   DELIVERYDATE = as.Date(as.character(DELIVERYDATE)),
+                   DOB = as.Date(DOB))
+
+```
+This chuck of code prepares the data for analysis and join the datasets together to one dataset; all_data.
+
+```{r}
+### DATA EXPLORATION
+
+### Explore missing values for variables
+nas_table <- all_data %>% 
+       map_df(~sum(is.na(.))) %>%
+       gather(key = "Variable", value="Number of NAs") %>%
+       arrange(desc(`Number of NAs`)) %>% # Arrange the # of NAs for each variable in descending order
+       kable(caption = "Table 1: Variables containing missing values") %>%
+             kable_styling(bootstrap_options = "striped", 
+             full_width = FALSE,
+             position = "left") # Present the data frame nicely
+
+nas_table
+
+```
+
+In Table 1, we can see the variables with the most missing values. It turns out that rating, payment and education are the variables that has the most number of missing values in the dataset. This could be of interest to the client in order to further investigate why this is the case.
+
+```{r}
+### Insights from barcharts, following code creates barcharts for all categorical variables
+bar_1 <-   all_data %>% 
+           group_by(HOBBY) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(HOBBY, counts), y= counts)) + 
+           labs(y = "Count", x = "Hobby", title = "Barchart 1: Counts of Hobbies") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+bar_2 <-   all_data %>% 
+           group_by(PPC_ADD) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(PPC_ADD, counts), y= counts)) + 
+           labs(y = "Count", x = "PPC add", title = "Barchart 2: Counts of PPC add") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+bar_3 <-   all_data %>% 
+           group_by(CATEGORY) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(CATEGORY, counts), y= counts)) + 
+           labs(y = "Count", x = "Category", title = "Barchart 3: Counts of each category") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+bar_4 <-   all_data %>% 
+           group_by(COLOR) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(COLOR, counts), y= counts)) + 
+           labs(y = "Count", x = "Color", title = "Barchart 4: Counts of each color") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+bar_5 <-   all_data %>% 
+           group_by(WEBBROWSER) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(WEBBROWSER, counts), y= counts)) + 
+           labs(y = "Count", x = "Webbrowser", title = "Barchart 5: Counts of webbrowsers") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+
+bar_6 <-   all_data %>% 
+           group_by(QTY) %>%
+           summarise(counts = n()) %>%
+           arrange(counts) %>%
+           ggplot(aes(x = reorder(QTY, counts), y= counts)) + 
+           labs(y = "Count", x = "Quantity", title = "Barchart 6: Counts of quantites") +
+           geom_bar(stat="identity",fill="steelblue") +
+           theme_minimal() +
+           coord_flip()
+
+
+bar_7 <- all_data %>% 
+       group_by(PAYMENT) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(PAYMENT, counts), y= counts)) + 
+       labs(y = "Count", x = "Payment", title = "Barchart 7: Counts of paymentmethods") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+
+bar_8 <- all_data %>% 
+       group_by(WAREHOUSE) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(WAREHOUSE, counts), y= counts)) + 
+       labs(y = "Count", x = "Warehouse", title = "Barchart 8: Counts of warehouse") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+
+bar_9 <- all_data %>% 
+       group_by(SHIPDAYS) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(SHIPDAYS, counts), y= counts)) + 
+       labs(y = "Count", x = "Shipdays", title = "Barchart 9: Counts of shipdays") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+
+bar_10 <- all_data %>% 
+       group_by(REVIEW) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(REVIEW, counts), y= counts)) + 
+       labs(y = "Count", x = "Review", title = "Barchart 10: Counts of reviews") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+bar_11 <-  all_data %>% 
+       group_by(RATING) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(RATING, counts), y= counts)) + 
+       labs(y = "Count", x = "Rating", title = "Barchart 11: Counts of ratings") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+bar_12 <- all_data %>% 
+       group_by(GENDER) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(GENDER, counts), y= counts)) + 
+       labs(y = "Count", x = "Gender", title = "Barchart 12: Counts of each gender") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+
+bar_13 <- all_data %>% 
+       group_by(year(DOB)) %>%
+       summarise(counts = n()) %>%
+       ggplot(aes(x=`year(DOB)`, y=counts)) +
+       geom_histogram(stat="identity",fill="steelblue",breaks = 38) +
+       labs(y = "Count", x = "Date of Birth", title = "Barchart 13: Counts of data of birth") +
+       theme_minimal() 
+
+
+bar_14 <- all_data %>% 
+       group_by(COUNTRY) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(COUNTRY, counts), y= counts)) + 
+       labs(y = "Count", x = "Country", title = "Barchart 14: Counts of each country") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+bar_15 <- all_data %>% 
+       group_by(EDUCATION) %>%
+       summarise(counts = n()) %>%
+       arrange(counts) %>%
+       ggplot(aes(x = reorder(EDUCATION, counts), y= counts)) + 
+       labs(y = "Count", x = "Education", title = "Barchart 15: Counts of education-levels") +
+       geom_bar(stat="identity",fill="steelblue") +
+       theme_minimal() +
+       coord_flip()
+
+
+
+grid.arrange(bar_2, bar_4, bar_5, bar_6)
+
+```
+
+Above I've created barcharts for all categorical variables, but only chosen to print a few for illustration. These barcharts give great insight of the distribution of each variable and can possibly bring insight of the customers' profile to the client. For example, in Barchart 2, it becomes evident that Kevin has sold the most. Whereas in Barchart 4 we can see that the color gold is most prominent in the dataset. In Barchart 5 it's noticable that the mobile app is more used than other web browsers, and in Barchart 6 we notice that the most usual quantity is 2. 
+
+```{r}
+### GRAPHS
+
+### Create a graph with delivery date on the x-axis and the counts of transactions that day on the y-axis
+graph_1 <- all_data %>%
+               group_by(DELIVERYDATE) %>%
+               summarise(n_transactions = n()) %>%
+               drop_na() %>%
+               ggplot(aes(x=DELIVERYDATE, y=n_transactions)) + 
+               geom_point() +
+               geom_line()+
+               labs(x="Delivery date", y="Number of transactions", title = "Graph 1: Delivery Date - Transactions") +
+               expand_limits(y = 0) +
+               scale_x_date(date_breaks = "1 month", date_labels = "%d-%m-%Y") +
+               theme(axis.text.x = element_text(angle=70, hjust=1))
+     
+graph_1
+
+```
+
+From Graph 1, it is clear that the number of transactions seem to be quite constant, except for an anamoly in November 2018. It's appropriate to investigate this further.
+
+```{r}
+### ANOMALY DETECTION
+
+anomaly_data <- all_data %>%
+                filter(between(DELIVERYDATE, ymd("2018-11-1"),ymd("2018-12-1")))
+                
+                
+summary(anomaly_data)
+```
+graf tidsserie med purchprice o saleprice
+
+knn.data <- all_data %>% select(PURCHASEPRICE, SALEPRICE) %>% drop_na() %>% distinct()
+glimpse(knn.data)
+
+lof.data <- lof(knn.data, k=5)
+summary(lof.data)
+
+head(knn.data, n=1000)
+knn.nn <- get.knn(knn.data, k=5)
+summary(knn.nn$nn.dist)
+summary(knn.nn)
+
+
+head(knn.data, n=100)
+all_data$score <- rowMeans(knn.data$nn.dist)
+head(pop)
+
+plot(PURCHASEPRICE ~ SALEPRICE, data = knn.data)
+bar1 <- all_data %>% 
+        group_by(PPC_ADD, DELIVERYDATE) %>%
+        summarise(sales = mean(SALEPRICE)) %>%
+        ggplot(aes(x=DELIVERYDATE, y= sales, color = PPC_ADD)) + geom_point()
+
