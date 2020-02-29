@@ -19,7 +19,7 @@ files_in_folder <- list.files(path = "../CaseData_2020_ID029", pattern = "\\.txt
 ### Read in the files to a list using map and read.delim
 data <- map(files_in_folder, read.delim, sep = "|", na.strings = c("NA", "NAs", "", " ", "NULL")) 
 
-### Separate the list of data and save each set in their on data frame
+### Separate the list of data and save each set in their own data frame
 customer_db <- data[[1]]
 
 items_db <- data[[2]]
